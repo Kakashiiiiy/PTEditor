@@ -72,7 +72,7 @@ static inline pteval_t native_pte_val(pte_t pte)
 }
 
 static inline int pud_large(pud_t pud) {
-#ifdef __PAGETABLE_PMD_FOLDED 
+#ifdef __PAGETABLE_PMD_FOLDED
     return pud_val(pud) && !(pud_val(pud) & PUD_TABLE_BIT);
 #else
     return 0;
@@ -165,8 +165,8 @@ _invalidate_tlb(void *addr) {
     for(pcid = 0; pcid < 4096; pcid++) {
       invpcid_flush_one(pcid, (long unsigned int) addr);
     }
-  } 
-  else 
+  }
+  else
 #endif
   {
     raw_local_irq_save(flags);
@@ -402,14 +402,16 @@ static int update_vm(ptedit_entry_t* new_entry, int lock) {
   if((old_entry.valid & PTEDIT_VALID_MASK_PMD) && (new_entry->valid & PTEDIT_VALID_MASK_PMD)) {
       pr_warn("Updating PMD\n");
       set_pmd(old_entry.pmd, native_make_pmd(new_entry->pmd));
+      pr_warn("Updated PMD\n");
   }
 
   if((old_entry.valid & PTEDIT_VALID_MASK_PTE) && (new_entry->valid & PTEDIT_VALID_MASK_PTE)) {
       pr_warn("Updating PTE\n");
       set_pte(old_entry.pte, native_make_pte(new_entry->pte));
   }
-
+  pr_warn("start invalidating TLB\n");
   invalidate_tlb(addr);
+  pr_warn("finished invalidating TLB\n");
 
   /* Unlock mm */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)
@@ -418,6 +420,7 @@ static int update_vm(ptedit_entry_t* new_entry, int lock) {
   if(lock) up_write(&mm->mmap_sem);
 #endif
 
+  pr_warn("unlocked mm struct\n");
   return 0;
 }
 
@@ -430,7 +433,7 @@ static void vm_to_user(ptedit_entry_t* user, vm_t* vm) {
 #if !defined(__ARCH_HAS_5LEVEL_HACK)
     if(vm->p4d) user->p4d = (vm->p4d)->pgd.pgd;
 #else
-    if(vm->p4d) user->p4d = (vm->p4d)->pgd;    
+    if(vm->p4d) user->p4d = (vm->p4d)->pgd;
 #endif
 #endif
 #endif
@@ -704,7 +707,7 @@ static int __init pteditor_init(void) {
   }
 #endif
   invalidate_tlb = invalidate_tlb_kernel;
-  
+
 #if defined(__i386__) || defined(__x86_64__)
   if (!cpu_feature_enabled(X86_FEATURE_INVPCID_SINGLE)) {
     native_write_cr4_func = (void *) kallsyms_lookup_name("native_write_cr4");
@@ -762,7 +765,7 @@ static int __init pteditor_init(void) {
 
 static void __exit pteditor_exit(void) {
   misc_deregister(&misc_dev);
-  
+
   unregister_kretprobe(&probe_devmem);
 
   if (has_umem) {
